@@ -1,0 +1,44 @@
+---
+title: "Caso de Estudio"
+output: html_notebook
+---
+
+```{r configuracion}
+knitr::opts_chunk$set(
+  echo = FALSE,
+  warning = FALSE,
+  error = FALSE,
+  message = FALSE,results = FALSE)
+
+library(tidyverse)
+
+```
+
+# La democracia en América Latina
+
+```{r}
+democracia_Mexico <- democracia %>%
+  filter(country %in% c("Mexico","Guatemala","Argentina","Brasil","Chile","Colombia")) %>% 
+  rename(`País` = country)
+democracia_Mexico
+```
+
+```{r}
+democracia_Mexico <- democracia_Mexico %>%
+  pivot_longer(names_to = "Anio",
+               values_to = "Nivel",
+               cols = -`País`,
+               names_ptypes = list(Anio = integer())) %>%
+  rename(`Año`=Anio)
+democracia_Mexico
+```
+
+```{r}
+ggplot(data = democracia_Mexico, aes(x = `Año`, y = Nivel,color = `País` )) +
+  geom_line() +
+  scale_y_continuous(breaks = seq(from = -10, to = 10, by = 1)) +
+  geom_hline(yintercept = 0) +
+  scale_color_brewer(palette = "Dark2") +
+  labs(y = "Nivel de democracia")
+```
+

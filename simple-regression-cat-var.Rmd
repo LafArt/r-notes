@@ -1,0 +1,168 @@
+---
+title: "Regresión simple - con una variable categórica y una numérica"
+output: html_notebook
+---
+
+# Expectativa de vida por continente y dentro de cada continente
+```{r configuracion}
+knitr::opts_chunk$set(
+  echo = FALSE,
+  warning = FALSE,
+  error = FALSE,
+  message = FALSE,results = FALSE)
+
+library(tidyverse)
+library(gapminder)
+library(moderndive)
+```
+
+
+```{r}
+gapminder2007 <- gapminder %>%
+  filter(year == 2007) %>%
+  select(country,lifeExp,continent,gdpPercap)
+
+```
+
+## Exploración numérica
+
+
+### Exploración de la extructura del dataframe
+
+```{r}
+glimpse(gapminder2007)
+```
+
+La *unidad observada* es un país, cada registro corresponde a datos de un determinado país. El `dataframe` contiene dos variables de tipo `factor` que es el tipo que R designa para variables categóricas.
+
+#### Variables
+
+1.  `country`: Contiene el nombre de los países.
+2.  `lifeExp`: Varaible numérica que representa la expectativa de vida al nacer. Esta es la variable $y$ de interés.
+3.  `continent`: Variable categórica con cinco niveles que corresponden a las categorías que la variable puede tomar. En este caso Africa, Asia, Americas, Europe, and Oceania. Esta es la variable categórica explicativa $x$.
+4.  `gpdPerCap`: Es una variable numérica que representa el ingreso per cápita en dólares. También puede utilizarse como otra variable $y$ de interés.
+
+### Exploración de los datos, veamos 5 países de forma aleatoria
+```{r}
+gapminder2007 %>%
+  sample_n(size = 5)
+```
+
+### Exploración de las dos variables de interés 
+
+Se generan estadísticas que revelan información útil para el análisis.
+
+```{r}
+library(skimr)
+gapminder2007 %>% 
+  select(lifeExp, continent) %>%
+  skim()
+```
+
+¿Por qué el promedio de vida es menor que la mediana? (LA mediana es una medida que indica el valor (en este caso expectativa de vida) para el cual el, 50% de la población está por debajo.)
+
+## Exploración Visual de los Datos
+
+### Histograma de la variable objetivo
+```{r}
+ggplot(data = gapminder2007, aes(x = lifeExp)) +
+  geom_histogram(binwidth = 5, color = "white") +
+  labs(x = "Life expectancy", y = "Number of countries",
+       title = "Histogram of distribution of worldwide life expectancies")
+```
+Puede observarse un histograma sesgado hacia la hizquierda, (*negatively skewed*), lo que indica que existen algunos países que tienen valores extremos (*outliers*) hacia abajo y están bajando el valor de la media, por otra parte, la mediana es menos sensible a los valores atípicos, por eso su valor es más alto.
+
+### Histograma de la variable objetivo por continente
+
+```{r}
+ggplot(gapminder2007, aes(x = lifeExp)) +
+  geom_histogram(binwidth = 5, color = "white") +
+  facet_wrap(~continent) +
+  labs(x = "Expectativa de vida", y = "Número de países",
+       title = "Histograma de la distribución de la expectativa de vida por continente")
+```
+
+### Gráfica de caja por continente.
+
+```{r}
+ggplot(data = gapminder2007, aes(x = continent, y = lifeExp, fill = continent)) +
+  geom_boxplot() +
+  labs(x = "Continent", y = "Life expectancy",
+       title = "Life expectancy by continent")
+```
+
+La línea sólida a la mitad de las cajas es la mediana que es diferente a la media o promedio. Por ejemplo, en el caso de África se puede observar que el 50% de los países tienen una expectativa de vida menor a 53 años.
+
+### Comparación de medias y medianas por continente
+```{r}
+comp_medias_medianas<- gapminder2007 %>%
+  group_by(continent) %>% 
+  summarise(mean = mean(lifeExp), median = median(lifeExp))
+
+comp_medias_medianas
+```
+
+### Perspectiva de la expectativa de vida tomando como referencia la media de África
+
+
+```{r}
+persp_vs_africa <- gapminder2007 %>%
+  mutate(meanAfrica = mean(lifeExp[continent == 'Africa'])) %>%
+  group_by(continent) %>%
+  summarise(average = mean(lifeExp),
+            diferencia = average - min(meanAfrica))
+persp_vs_africa
+```
+
+## Regresión lineal
+
+### Generación del modelo de regresión lineal
+```{r}
+
+modelo_xv <- lm(lifeExp~continent,data = gapminder2007)
+get_regression_table(modelo_xv) #moderndive package
+```
+
+Se puede observar que el modelo de regresión lineal, pone el `intercept` con un valor de 54.8, valor que corresponde a la media de expectativa de vida del continente africano como vimos anteriormente. Después, los valores estimados para cada continente corresponden al las diferencias entre la media de los continentes y la media de África.Toma África para calcular el `intercept` por la única razón de que aparece en primer lugar en el `dataframe`.
+
+La ecuación para esta regresión lineal es
+
+$$\hat y = \widehat{\text{life exp}} = b_0 + b_{Ame} \cdot 1_{Ame(x)} + b_{Asia} \cdot 1_{Asia(x)} + \\ b_{Euro} \cdot 1_{Euro(x)} + b_{Ocean} \cdot 1_{Ocean(x)} \\= 54.8 + 18.8\cdot\mathbb{1}_{\text{Amer}}(x) + 15.9\cdot\mathbb{1}_{\text{Asia}}(x) +\\ 22.8\cdot\mathbb{1}_{\text{Euro}}(x) + 25.9\cdot\mathbb{1}_{\text{Ocean}}(x) $$ 
+Se utiliza la notación matemática de `función indicadora` $1_A(x)$ donde
+
+$$
+\mathbb{1}_{A}(x) = \left\{
+\begin{array}{ll}
+1 & \text{if } x \text{ is in } A \\
+0 & \text{if } \text{otherwise} \end{array}
+\right.
+$$
+
+Por ejemplo $1_{Amer}(x)$ regresa 1 si el país del que se está hablando está en América, de otra forma. regresa 0.
+
+$b_0$ corresponde al término independiente (`intercept`) y $b_{Ame}$, $b_{Asia}$, $b_{Euro}$ y $b_{Ocean}$ representan las 4 "compensaciones relativas a la base de comparación": *continentAmericas*, *continentAsia*, *continentEurope* y *continentOceania*.
+
+Por ejuemplo, si se considera el contiente americano la ecuación quedaría como sigue:
+
+$$
+\widehat{\text{life exp}} = 54.8 + 18.8\cdot\mathbb{1}_{\text{Amer}}(x) +\\ 15.9\cdot\mathbb{1}_{\text{Asia}}(x) + \\
+22.8\cdot\mathbb{1}_{\text{Euro}}(x) + \\
+25.9\cdot\mathbb{1}_{\text{Ocean}}(x)\\
+= 54.8 + 18.8\cdot 1 + 15.9\cdot 0 + 22.8\cdot 0 + 25.9\cdot 0\\
+= 54.8 + 18.8 \\
+= 73.6
+$$
+que es la expectativa de vida para los países de América.
+
+
+## Comprobación de la eficiencia del modelo de regresión
+
+1.  Ver los valores observados de la variable objetivo ($y$), en este caso *lifeExp*.
+2.  Calcular los valores estimados para y ($\hat{y}$), para un valor de $x$ dado.
+3.- Calcular los residuos ($y - \hat{y}$), es decir, el error entre el valor observado y el valor estimado por el modelo.
+
+```{r}
+regression_points <- get_regression_points(modelo_xv, ID = "country")
+regression_points
+```
+

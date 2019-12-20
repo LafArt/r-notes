@@ -1,0 +1,38 @@
+---
+title: "importar datos"
+output: html_notebook
+---
+
+
+```{r configuracion}
+knitr::opts_chunk$set(
+  echo = FALSE,
+  warning = FALSE,
+  error = FALSE,
+  message = FALSE,results = FALSE)
+
+```
+
+Agregamos la librería *`dplyr`* que contiene todas las herramientas que estamos utilizando para el análisis de datos estructurados.
+```{r}
+library(dplyr)
+```
+
+
+Existen diversos paquetes para importar datos de diferentes fuentes al entorno de R. Los datos estructurados normalmente se encuentran en archivos de texto planos separados por coma, bases de datos, páginas de hojas de cálculo como **Google Sheets** o **Microsoft Excel**, o, tablas dentro de páginas web.
+
+Para importar a R un archivo .csv (Comma Separated Values) alojado en la web, utilizaremos la función *`read_csv`* del paquete *`readr`*. Esta archivo contiene las calificaciones sobre el nivel de democracia en diversos paises del mundo desde 1952 hasta 1992. En este conjunto de datos -10 corresponde al nivel más autocrático y 10 al nivel más democrático.
+
+
+```{r usando-readr, echo=TRUE}
+library(readr)
+democracia <- read_csv("https://moderndive.com/data/dem_score.csv")
+
+democracia
+```
+
+**Nota:** en R no se permite que los nombres de columnas empiecen con números o que tengan espacios, sin embargo, en muchas ocaciones los nombres e las columnas fueron definidos de esta manera en las hojas de Excel u otros documentos que almacenan datos. Esto se puede manejar encerrando los nombres de columnas entre comillas sencillas (backtrics `(``)`).
+
+Existe una función en R `*read.csv*`, cuya funcionalidad es semejante a la que utilizamos en este ejemplo. La razón de usar la función del paquete `*readr*` en lugar de la de base, es que importa datos con mayor velocidad y que los `dataframes` son almacenados enformato `*tibble*` por default.
+
+

@@ -1,0 +1,187 @@
+---
+title: "Tidy data"
+output: html_notebook
+---
+
+
+
+```{r configuracion}
+knitr::opts_chunk$set(
+  echo = FALSE,
+  warning = FALSE,
+  error = FALSE,
+  message = FALSE,results = FALSE)
+
+```
+
+## Un ejemplo usando el paquete `*fivethirtyeight*`.
+
+El paquete `fivethirtyeight` contiene 127 dasets utilizados en diversas publicaciones. Si desea consultar el contenido completo del paquete vaya al sitio   <https://fivethirtyeight-r.netlify.com/articles/fivethirtyeight.html>.
+
+Exploremos el dataset `drinks` después de cargar la librería `fivethirtyeight`.
+```{r}
+library(fivethirtyeight)
+
+drinks
+```
+
+Si solicitas ayuda de R mediante el comando  `?drinks` verás que este dataset contiene información sobre el consumo de alcohol en 193 países.
+
+Mediante funciones del paquete `dplyr` haremos algunas transformaciones a los datos acorde a nuiestros propósitos. 
+
+1. Selecionamos los registros de Estados Unidos, Italia, China y Arabia Saudita. 
+2. Seleccionamos todas las columnas excepto `total_litres_of_pure_alcohol`.
+3. Renombramos las variables `country`, `beer_servings`, `spirits_servings` y `wine_servings` por `País`,`Cerveza`, `Licor` y `Vino`.
+
+```{r data-transformation}
+bebidas <- drinks %>% 
+  filter(country %in% c("USA","China","Italy","Saudi Arabia","Mexico")) %>%
+  select(-total_litres_of_pure_alcohol) %>%
+  rename(País = country,
+         Cerveza = beer_servings, 
+         Licor = spirit_servings,
+         Vino = wine_servings)
+bebidas
+
+```
+
+¿Cómo haríamos una gráfica de barras para ver la información completa?
+
+
+
+
+Lo que corresponde es establecer el país en el eje `x` y la cantidad de alcohol en el eje `y`, sin embargo la función `aes()`, acepta unicamente una variable en cada parámetro, es decir, no podemos asignar `beer`,`spirit`, y `wine` a la ordenada y. En este caso, podríamos ver gráficas separadas de cada una de las clasificaciones de bebidas, por ejemplo, para la gráfica de consumo de cerveza, haríamos lo siguiente:
+
+```{r, echo=TRUE}
+library(ggplot2)
+ggplot(data = bebidas, aes(x = `País`, y = Cerveza, fill = `País`)) +
+  geom_col() +
+  scale_fill_brewer(palette = "Paired")
+```
+
+Deberíamos hacer lo mismo con cada una de las bebidas.
+
+Lo ideal sería que para cada país aparezcan tres barras correspondientes a cada tipo de bebida. Para lograr eso es necesario tranformar los datos de tal manera que haya una columna `tipo_bebida` y las para cada país se tenga un registro por tipo de bebida. En términos técnicos en lenguaje de ciencia de datos diríamos que los datos deben ser transfomados del formato `wide` al formato `long/narrow`. En R esto se conoce como "pasar los datos al formato `tidy`".
+
+
+El término **tidy** es utilizado en inglés para referirze orden, organización y pulcritud. En el contexto de R y `dplyr`, el término es utilizado para referirse a que los datos se encuentran en un formato estadarizado que puede ser interpretado fácilmente por los paquetes que conforman el conjunto de paquetes `tidyverse`, por ejemplo `ggplot2`.
+
+Hadley Wickham  define `tidy` como:
+
+> "Tidy" es un formato estándar para establecer la esctructura de un conjunto de datos. Un conjunto de datos es `tidy` o no, dependiendo de como los renglones, columnas y tablas organizan las observaciones, variables y tipos. En el formato `tidy`:  
+
+> 1. Cada variable es una columna. 
+> 2. Cada observación es un renglón. 
+> 3. Cada tipo de unidad de observación es una tabla.
+
+Por ejemplo, la siguiente tabla de precios de Aceite para autos...
+
+```{r formato-no-tidy}
+aceites <- tribble(
+  ~Nombre, ~`Precio Walmart`, ~`Precio Soriana`, ~`Precio Autozone`,
+  "Castrol", 800.23, 830.12, 783.21,
+  "Quaker",  754.10, 723.32, 715.20,
+  "Valvoline", 765.32,810.30, 756.30
+)
+aceites
+```
+Es una tabla entendible y que cumple normalización, sin embargo, no está en formato `tidy`. Para estar en formato `tidy`, los proveedores deben ser una columna y los precios otra de tal forma que para cada tipo de aceite exite una combinación de precio y proveedor en un registro.
+
+La tabla debe verse de la siguiente forma:
+
+```{r formato-tidy}
+aceites_tidy <- tribble(
+  ~Nombre, ~Proveedor, ~Precio,
+  "Castrol", "Walmart", 800.23,
+  "Castrol", "Soriana", 830.12,
+  "Castrol", "Autozone", 783.21,
+  "Quaker", "Walmart", 754.10,
+  "Quaker", "Soriana", 723.32,
+  "Quaker", "Autozone", 715.20,
+  "Valvoline", "Walmart", 765.32,
+  "Valvoline", "Soriana", 810.30,
+  "Valvoline", "Autozone", 756.30
+)
+aceites_tidy
+```
+
+Como ya te imaginarás, todos los datos que quieras analizar mediante las herramientas del conjunto de paquetes `tidyverse` deben estar en formato `tidy`. Afortunadamente, denro de estas herramientas está incluida una que permite la transformación de tablas `no-tidy` a tablas `tidy` y viceverza. La función `pivot_longer` del paquete `tidyr` permite hacer la transformación de una tabla a formato `tidy`, estableciendo los parámetros `names_to`, `values_to` y `cols` como se muestra en el siguiente ejemplo:
+
+```{r converting-data-to-tidy-format, echo=TRUE}
+library(tidyr)
+bebidas_tidy <- bebidas %>%
+  pivot_longer(names_to = "Tipo",
+               values_to = "Cantidad",
+               cols = -`País`)
+bebidas_tidy
+```
+
+1. `names_to`: Corresponde a la columna que contendrá como dato, el nombre de las columnas de la tabla original.
+2. `values_to`: Corresponde a la columna que contendrá los valores de las celdas de la tabla original.
+3. `cols`: Corresponde al nombre de las columnas que deben o no transformarse al formato `tidy`. En este caso puede observarse que la columna `País` le antecede un signo `-` indicando que en este caso no debe convertirse.
+
+
+El siguiente código produce el mismo resultado, sin embargo, en esta ocasión se indican las columnas que deben transformarse en lugar de indicar la que no, como en el caso anterior.
+
+```{r, echo=TRUE}
+bebidas %>%
+  pivot_longer(names_to = "Tipo",
+               values_to = "Cantidad",
+               cols = c(Cerveza,Licor,Vino))
+
+```
+
+Lo mismo ocurre con:
+
+```{r, echo=TRUE}
+bebidas %>%
+  pivot_longer(names_to = "Tipo",
+               values_to = "Cantidad",
+               cols = Cerveza:Vino)
+
+```
+
+Con la tabla en formato `tidy` se puede generar de forma natural la gráfica deseada al principio del documento.
+
+```{r plot_bars_tidy_format,echo = TRUE}
+ggplot(data = bebidas_tidy, aes(x = `País`, y = Cantidad, fill = Tipo)) +
+  geom_col(position = "dodge") +
+  scale_fill_brewer(palette = "Paired")
+```
+**Nota:** Para convertir una tabla en formato `tidy`, a formato `wide`, utilice `pivot_wider()` en lugar de `pivot_longer`. Consulte la ayuda mediante el comando `?pivot_wider`.
+
+Ejercicio: Da un vistazo a la tabla `airline_safety` del paquete `fivethirtyeight`, esta tabla contiene datos referentes a la seguridad de diversas aerolineas. Considera solamente aquellas columnas relacionadas con accidentes fatales para simplificar la tarea (empiezan con `fatalities`). Convierte la tabla resultante a una tabla con formato tidy.
+
+```{r ,echo = TRUE}
+muertes <- airline_safety %>%
+  select(airline, starts_with("fatalities")) %>%
+  mutate(aleatorio = sample(1:4,56,replace = TRUE,prob = c(.25,.25,.25,.25))) %>%
+  rename(`Aerolínea` = airline,
+         muertes_85_99 = fatalities_85_99,
+         muertes_00_14 = fatalities_00_14)
+
+muertes
+```
+
+```{r,echo=TRUE}
+muertes_tidy <- muertes %>%
+  pivot_longer(names_to = "Años",
+               values_to = "Cantidad",
+               cols = -c(`Aerolínea`,aleatorio))
+muertes_tidy
+```
+
+```{r plot-muertes,echo=TRUE}
+
+ggplot(data = muertes_tidy %>% filter(aleatorio %in% c(1,2)), aes(x = `Aerolínea`, y = Cantidad, fill = `Años`)) +
+  geom_col(position = "stack") + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1,vjust = 0.5)) 
+  #facet_wrap(~aleatorio, ncol = 1)
+```
+
+
+
+```{r}
+
+```
+

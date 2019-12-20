@@ -1,0 +1,12 @@
+---
+title: "Datasets and content"
+output: html_notebook
+---
+
+
+1.  **gapminder**
+    * **Descripción:** Contiene estadísticas de desarrollo internacionales como expectativa de vida, GPD per cápita y población, de 142 países en intervalos de 5 años de 1952 a 2007.
+    * **Ubicación:** Paquete `gapminder` de R
+2.  **nycflights13**
+    * **Descripción:** Contiene datos de todos los vuelos domésticos partiendo de los aereopuertos de Nueva York en 2013.
+    * **Ubicación:** Paquete `nycflights13` de R

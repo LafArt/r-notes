@@ -1,0 +1,143 @@
+---
+title: "Regresión Múltiple: Dos variables numéricas"
+output: html_notebook
+---
+
+```{r configuracion}
+knitr::opts_chunk$set(
+  echo = FALSE,
+  warning = FALSE,
+  error = FALSE,
+  message = FALSE,results = FALSE)
+
+library(tidyverse)
+  #ggplot2 for data visualization
+  #dplyr for data wrangling
+  #tidyr for converting data in tidy format
+  #readr for importing spreadsheet data into R
+  #Also load other advanced packages like purr, tibble, string and forcats
+library(moderndive)
+library(skimr)
+library(ISLR)
+```
+
+# Caso de estudio: Tarjetas de crédito.
+
+Se utilizará tres variables del dataset Credit del paquete ISLR.
+
+1. `Credit Card Debt`, como la variable objetivo $y$.
+2. `Credit Limit`, como la primera variable explicativa $x1$.
+2. `Income`, como la segunda variable explicativa $x2$.
+
+## Análisis Exploratorio
+
+### Selección de variables del dataset original
+```{r, echo=TRUE}
+t_credito <- Credit %>% as_tibble() %>%
+  select(ID, debt = Balance, credit_limit = Limit,
+         income = Income, credit_rating = Rating, age = Age)
+  
+  glimpse(t_credito)
+```
+
+### Vista de 5 datos aleatorios
+
+```{r}
+t_credito %>% sample_n(5)
+```
+
+### Estadísticas descriptivas sobre los datos
+
+```{r}
+t_credito %>% select(-ID) %>% skim()
+```
+
+### Correlación entre la variable objetivo y las dos variables explicativas
+
+```{r}
+debt_credit_lim <- t_credito %>% get_correlation(debt ~ credit_limit) %>%
+  round(.,2)
+debt_income <- t_credito %>% get_correlation(debt ~ income) %>%
+  round(.,2)
+
+print(paste(debt_credit_lim,debt_income))
+
+```
+
+La correlación entre la deuda (`debt`) y el límite de crédito (`credit_limit`) es `r debt_credit_lim`, mientras que la correlación entre la deuda y el ingreso es de `r debt_income`
+
+Se puede generar en una tabla la matriz de correlación en conjunto con el siguiente código:
+
+```{r, echo = TRUE}
+
+t_credito %>% select(debt,credit_limit,income) %>% cor() %>% round(.,3)
+
+```
+
+### Visualisación de las dos varaibles explicativas
+
+```{r}
+gg_credit_lim <- ggplot(data = t_credito, aes(x = credit_limit, y = debt)) +
+  geom_point() +
+  geom_smooth(method = "lm",se = FALSE) +
+  labs(x = "Límite de crédito", y = "Saldo Deudor", title = "Límite de crédito vs Deuda")
+
+gg_income <- ggplot(data = t_credito, aes(x = income, y = debt)) +
+  geom_point() +
+  geom_smooth(method = "lm",se = FALSE) +
+  labs(x = "Ingresos Anuales", y = "Saldo Deudor", title = "Límite de crédito vs Deuda")
+
+library(ggpubr)
+
+ggarrange(gg_credit_lim,gg_income,ncol = 2,widths = c(5.5,6))
+```
+
+### Generación del modelo mediante el método de pendientes paralelas
+
+```{r}
+modelo_deuda <- lm(formula = debt ~ credit_limit + income, data = t_credito)
+get_regression_table(modelo_deuda)
+```
+
+La ecuación para este modelo queda de la siguiente forma:
+
+$$
+\begin{aligned}
+\widehat{y} &= b_0 + b_1 \cdot x_1 +  b_2 \cdot x_2\\
+\widehat{\text{debt}} &= b_0 + b_{\text{limit}} \cdot \text{limit} + b_{\text{income}} \cdot \text{income}\\
+&= -385.179 + 0.263 \cdot\text{limit} - 7.663 \cdot\text{income}
+\end{aligned}
+$$
+### Comprobación de la eficiencia del modelo
+```{r}
+get_regression_points(modelo_deuda)
+```
+
+
+### Visualización de las variables `credit_rating` y `age` como variables explicativas
+
+```{r}
+gg_credit_rat <- ggplot(data = t_credito, aes(x = credit_rating, y = debt)) +
+  geom_point() +
+  geom_smooth(method = "lm",se = FALSE) +
+  labs(x = "Calificación crediticia", y = "Saldo Deudor", title = "Calificación crediticia vs Saldo Deudor")
+
+gg_age <- ggplot(data = t_credito, aes(x = age, y = debt)) +
+  geom_point() +
+  geom_smooth(method = "lm",se = FALSE) +
+  labs(x = "Edad", y = "Saldo Deudor", title = "Edad vs Saldo Deudor")
+
+library(ggpubr)
+
+ggarrange(gg_credit_rat,gg_age,ncol = 2,widths = c(5.5,6))
+```
+
+
+```{r}
+modelo_deuda_age_cal <- lm(data = t_credito,formula = debt ~ credit_rating + age)
+get_regression_table(modelo_deuda_age_cal)
+```
+```{r}
+get_regression_points(modelo_deuda_age_cal)
+```
+

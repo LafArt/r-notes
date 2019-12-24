@@ -10,3 +10,7 @@ output: html_notebook
 2.  **nycflights13**
     * **Descripción:** Contiene datos de todos los vuelos domésticos partiendo de los aereopuertos de Nueva York en 2013.
     * **Ubicación:** Paquete `nycflights13` de R
+    
+2.  **Credit**
+    * **Descripción:** Contiene datos simulados con propósitos educativos sobre tarjetas de crédito.
+    * **Ubicación:** Paquete `ISLR` de R (ver el libro [An Introduction to Statistical Learning with Applications in R](http://faculty.marshall.usc.edu/gareth-james/))

@@ -1,0 +1,329 @@
+---
+title: "Regresión múltiple"
+output: html_notebook
+---
+
+
+```{r configuracion}
+knitr::opts_chunk$set(
+  echo = FALSE,
+  warning = FALSE,
+  error = FALSE,
+  message = FALSE,results = FALSE)
+
+library(tidyverse)
+  #ggplot2 for data visualization
+  #dplyr for data wrangling
+  #tidyr for converting data in tidy format
+  #readr for importing spreadsheet data into R
+  #Also load other advanced packages like purr, tibble, string and forcats
+library(moderndive)
+library(skimr)
+library(ISLR)
+```
+
+Caso de estudio: La evaluación de los docentes en función de dos variables, género y edad. Una varible categórica y una variable numérica.
+
+Se utiliza el dataset `evals` incluido en el paquete `moderndive`.
+
+En primera instancia crearemos un dataset conteniendo únicamente las tres varaibles de interés. Las dos variables explicativas $X$ y la variable objetivo $y$.
+
+```{r select-variables, echo = T}
+evaluaciones <- evals %>%
+  select(ID, score, age, gender)
+evaluaciones
+```
+
+## Exploarción de datos mediante tres pasos:
+
+1.  Observación de los datos: estructura y valores.
+2.  Cálculo de estadísticas descriptivas que proveen información útil
+3.  Visualización de datos mediante gráficas que aportan más información
+
+### Observación de la estructura de los datos
+```{r}
+glimpse(evaluaciones)
+```
+
+
+### Observación de los valores de los datos
+```{r}
+evaluaciones %>%
+  sample_n(7)
+```
+
+## Estadísticas descriptivas
+
+### Resumen de estadísticas por tipo de variables
+
+```{r}
+evaluaciones %>%
+  select(score, age, gender) %>%
+  skim()
+```
+
+### Correlación entre las dos variables numéricas
+
+```{r}
+evaluaciones %>% get_correlation(formula = score ~ age)
+```
+## Exploración visual de los datos
+
+### Gráfica de dispersión
+
+Las variables numéricas se utilizarán para generar los puntos mientras que la varaible de género se incorpara al gráfico mediante el color de los puntos.
+
+```{r}
+ggplot(data = evaluaciones, aes(x = age, y = score, color = gender)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE)
+```
+
+## Modelo de regresión lineal múltiple
+
+La fórmula en este caso debe incluir las dos variables en cuestión `gender` y `age`, en la formula las asociamos con un signo de multiplicación, de la siguiente manera: `y = x1 * x2`.
+
+```{r}
+modelo_de_interaccion <- lm(score ~ age * gender, data = evaluaciones)
+get_regression_table(modelo_de_interaccion)
+```
+
+El `intercept` en esta tabla corresponde a la intercepción del género femenino. La función `ml` toma como punto de referencia el dato que aparezca primero dependiendo del orden alfabético (R siempre ordena de esta forma). Lo mismo sucede con la pendiente de la edad, `-0.18` corresponde a la pendiente de la línea roja del gráfico de dispersión, correspondiente para el género femenino.
+
+¿Qué pasa con la intercección y la pendiente del género masculino?
+
+Estas se calculan relativamente a la intersección y pendiente del género `femenino`, es decir, la intersección para `masculino` se calcula `intercept + gendermale` = 4.883 + (-0.446) = 4.437. De la misma forma, `age:gendermale` = 0.014 no es la pendiente de los instructores masculinos, sino la diferencia entre el valor de la pendiente y la pendiente femenina (-0.18). Así que la pendiente para la edad masculina se calcula mediante la fórmula `age + age:gendermale` = -0.018 + 0.014 = -0.004.
+
+La siguiente tabla muestra los datos de forma completa:
+
+```{r}
+datos <- tribble(
+  ~Gender,~Intercept,~`Slope for age`,
+  "Female instructors", 4.883, -0.018,
+  "Male instructors", 4.437, -0.004
+)
+datos
+```
+Esto significa que en promedio un instructor femenino que es un año mayor, tiene una evaluación que es *0.018 unidades menor*. Para los instructores masculinos, el decrecimiento en la evaluación debido a la edad es menor (0.004 unidades). Esto sugiere que en las evaluaciones escolares, la edad impacta de forma más importante en los instructores femeninos que en los masculinos. 
+
+La ecuación para calcular $\hat{y} = score$ es:
+$$
+\widehat{y} = b_0 + b_{\text{age}} \cdot \text{age} + b_{\text{male}} \cdot \mathbb{1}_{\text{is male}}(x) + b_{\text{age,male}} \cdot \text{age} \cdot \mathbb{1}_{\text{is male}}\\
+= 4.883 -0.018 \cdot \text{age} - 0.446 \cdot \mathbb{1}_{\text{is male}}(x) + 0.014 \cdot \text{age} \cdot \mathbb{1}_{\text{is male}}
+$$
+donde
+
+$$
+\mathbb{1}_{\text{is male}}(x) = \left\{
+\begin{array}{ll}
+1 & \text{si el instructor } x \text{es masculino}\\
+0 & \text{de otra manera}\end{array}
+\right.
+$$
+<!-- no poener el punto al final de la ecuación latex hace que la ecuación no se vea. -->
+
+Por ejemplo, para estimar el valor de $\hat{y}$ para instructores femeninos, la f´rmula quedaría:
+$$
+\begin{aligned}
+\widehat{y} = \widehat{\text{score}} &= 4.883 - 0.018   \cdot \text{age} - 0.446 \cdot 0 + 0.014 \cdot \text{age} \cdot 0\\
+&= 4.883 - 0.018    \cdot \text{age} - 0 + 0\\
+&= 4.883 - 0.018    \cdot \text{age}\\
+\end{aligned}
+$$
+
+Mientras que para los instructores maculinos, la ecuación sería:
+
+$$
+\begin{aligned}
+\widehat{y} = \widehat{\text{score}} &= 4.883 - 0.018   \cdot \text{age} - 0.446 + 0.014 \cdot \text{age}\\
+&= (4.883 - 0.446) + (- 0.018 + 0.014) * \text{age}\\
+&= 4.437 - 0.004    \cdot \text{age}\\
+\end{aligned}
+$$
+
+## Otro ejemplo del modelo de regresión lineal
+
+```{r}
+rendimiento <- tribble(
+  ~Sujetos,~inteligencia,~`motivación`,~rendimiento,
+  1,85,"baja",5,
+  2,100,"baja",8,
+  3,95,"baja",7,
+  4,80,"baja",4,
+  5,115,"baja",10,
+  6,90,"baja",6,
+  7,100,"alta",6,
+  8,105,"alta",7,
+  9,85,"alta",9,
+  10,80,"alta",9,
+  11,100,"alta",4,
+  12,115,"alta",7
+)
+rendimiento
+
+```
+
+```{r}
+ggplot(data = rendimiento, 
+       aes(x = inteligencia, y = rendimiento, color = `motivación`)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE)
+```
+### Modelo de regresión múltiple
+```{r}
+modelo_rendimiento = lm(data = rendimiento, 
+                        formula = rendimiento ~ inteligencia * `motivación`)
+
+get_regression_table(modelo_rendimiento)
+
+
+```
+
+Ecuación de regresión estimada
+
+$$
+\hat{y} = b_{0} + b_{inteligencia} \cdot inteligencia + \\
+b_{motivación}\cdot 1_{\text{es baja}}(x) + \\
+b_{int:mot}\cdot inteligencia \cdot 1_{\text{es motivación_baja}}(x)\\
+= 15.149 - 0.084\cdot inteligencia - \\
+24.771 \cdot1_{\text{si es motivación_baja}}(x) + \\
+0.257\cdot inteligencia\cdot 1_{\text{si es motivación_baja}}(x)
+$$
+
+```{r}
+
+
+y <- 15.149 - 0.084 * rendimiento$inteligencia - 
+  24.771 * ifelse(rendimiento$`motivación`== "baja",1,0) +
+  0.257 * rendimiento$inteligencia * ifelse(rendimiento$`motivación`== "baja",1,0)
+
+tibble(y,y1)
+
+
+```
+
+La siguiente es la ecuación de los resultados del autor del ejemplo
+sin embargo la aproximación resulta más lejana que la resultante por el método
+que  el librop moderndive propone.
+https://personal.us.es/avelarde/analisisdos/Interaccion%20en%20regresion.pdf
+
+Si hacemos el cálculo y la comparación tenemos
+```{r}
+
+rendimiento_ej <- rendimiento %>%
+  mutate(xm_int = inteligencia - mean(inteligencia))
+
+
+ y1 <- -9.622 + 0.173 * (rendimiento$inteligencia - 
+                           mean(rendimiento$inteligencia)) + 
+   0.184 * ifelse(rendimiento$`motivación`== "baja",1,0) -
+   0.257 * (rendimiento$inteligencia - mean(rendimiento$inteligencia)) * ifelse(rendimiento$`motivación`== "baja",1,0)
+ 
+ resultados <- tibble(nuestro_ejemplo=y,ejemplo_del_libro=y1,dato_observado=rendimiento$rendimiento)
+ resultados
+```
+
+Si calculamos el error en ambos casos tenemos
+```{r}
+resultados <- resultados %>%
+  mutate(diff_ne = dato_observado - nuestro_ejemplo,
+         diff_eb = dato_observado - ejemplo_del_libro
+         )
+
+error_nuestro_ejemplo = round(sum(resultados$diff_ne^2),3)
+error_ej_libro = round(sum(resultados$diff_eb^2),3)
+
+
+```
+
+Vemos que el error del método que propone moderdive (`r error_nuestro_ejemplo`) respecto al error que propone el documento en internet (`r error_ej_libro`) es mucho menor.
+
+Si generamos el modelo a partir de considerar la motivación como dato numérico (0,1), obtenemos resultados distintos en los coeficientes del modelo, sin embargo las predicciones resultan ser muy parecidas al modelo antes generado con la motivación como dato categórico.
+
+```{r}
+rendimiento_num <- tribble(
+  ~Sujetos,~inteligencia,~`motivación`,~rendimiento,
+  1,85,0.0,5,
+  2,100,0.0,8,
+  3,95,0.0,7,
+  4,80,0.0,4,
+  5,115,0.0,10,
+  6,90,0.0,6,
+  7,100,1.0,6,
+  8,105,1.0,7,
+  9,85,1.0,9,
+  10,80,1.0,9,
+  11,100,1.0,4,
+  12,115,1.0,7
+)
+
+mod_rendimiento_num <- lm(data = rendimiento_num, 
+                          formula = rendimiento ~ inteligencia * `motivación`)
+
+tabla_regresion <- get_regression_table(mod_rendimiento_num)
+
+tabla_regresion
+
+```
+
+Se genera el modelo y se imprimen los resultados predichos por el modelo
+
+```{r, results = TRUE}
+anova_rendimiento <- aov(mod_rendimiento_num)
+summary(anova_rendimiento)
+y_num<-predict(mod_rendimiento_num,rendimiento_num[,2:3])
+y_num
+```
+
+## Modelo de pendientes páralelas
+
+El modelo de pendientes paralelas como su nombre lo indica, obliga que las pendientes de todas las líneas resultantes del modelo sean paralelas auqnue tengan diferentes intersecciones. `ggplot2` no provee este método en `geom_smooth`, por lo tanto para utilizarlo es necesario cargar el paquete `moderndive` y utilizar el método `geom_parallel_slopes`.
+
+```{r}
+ggplot(evaluaciones, aes(x = age, y = score, color = gender)) +
+  geom_point() +
+  labs(x = "Age", y = "Teaching Score", color = "Gender") +
+  geom_parallel_slopes(se = FALSE)
+```
+
+El modelo que se genera para este tipo de aproximación tiene la fórmula `y ~ x1 + x2` en lugar de la fórmula para el modelo de interacción `y ~ x1 *+* x2`.
+
+```{r}
+# Fit regression model:
+modelo_pendientes_paralelas <- lm(score ~ age + gender, data = evaluaciones)
+# Get regression table:
+get_regression_table(modelo_pendientes_paralelas)
+```
+
+En el caso de la intesección, nuevamente el dato corresponde al grupo de instructores femeninos (4.484), mientras que la intersección de instructores masculinos será de 4.484 + 0.191 = 4.675. En este caso se tiene un sólo valor para el coeficiente de la edad (-0.009) puesto que la pendiente es la misma para ambos casos. Esto significa que un instructor que es un año mayor que otro, recibe en promedio una puntuación menor en 0.009 unidades. Esto aplic a ambos casos, muejeres y hombres.
+
+La ecuación queda como sigue:
+$$
+\begin{aligned}
+\widehat{y} = \widehat{\text{score}} &= b_0 + b_{\text{age}} \cdot \text{age} + b_{\text{male}} \cdot \mathbb{1}_{\text{is male}}(x)\\
+&= 4.484 -0.009 \cdot \text{age} + 0.191 \cdot \mathbb{1}_{\text{is male}}(x) 
+\end{aligned}
+$$
+veamos las dos gráficas juntas
+```{r}
+gg_interaction <- ggplot(data = evaluaciones, aes(x = age, y = score, color = gender)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(title = "Modelo de interacción", x = "Age", y = "Teaching Score") +
+  theme(legend.position = "none")
+
+gg_pendientes_paralelas <- ggplot(evaluaciones, aes(x = age, y = score, color = gender)) +
+  geom_point() +
+  labs(x = "Age", y = "Teaching Score", color = "Gender") +
+  labs(title = "Modelo de pendientes paralelas", x = "Age", y = "") +
+  geom_parallel_slopes(se = FALSE)
+
+library(gridExtra)
+library(ggpubr)
+
+#grid.arrange(gg_interaction,gg_pendientes_paralelas,ncol=2)
+
+ggarrange(gg_interaction,gg_pendientes_paralelas,ncol=2, widths = c(7.0,9.5))
+
+```
+

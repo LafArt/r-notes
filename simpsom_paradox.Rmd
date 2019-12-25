@@ -1,0 +1,125 @@
+---
+title: "Análisis pendientes de relación entre dos variables por grupos"
+output: html_notebook
+---
+
+
+
+```{r configuracion}
+knitr::opts_chunk$set(
+  echo = FALSE,
+  warning = FALSE,
+  error = FALSE,
+  message = FALSE,results = FALSE)
+
+library(tidyverse)
+  #ggplot2 for data visualization
+  #dplyr for data wrangling
+  #tidyr for converting data in tidy format
+  #readr for importing spreadsheet data into R
+  #Also load other advanced packages like purr, tibble, string and forcats
+library(moderndive)
+library(skimr)
+library(ISLR)
+```
+
+
+Al buscar la relación entre dos variables mediante un modelo de regresión lineal, se puede llegar a interpretaciones difíciles de entender y explicar si la visualización de los datos no avala lo que los números dicen.
+
+Una situación que puede aprecer es la llamada paradoja de Simpson (Simpson's Paradox), qu e en este caso consiste en que la tendencia que se puede observar a analizar la totalidad de los datos puede desaparecer o incluso revertirse cuando los mismos datos son analizados en grupos.
+
+Aquí tenemos dos ejemplos:
+
+
+# How to divide en quantiles a column
+
+```{r}
+creditos <- Credit %>% select(deuda = Balance, limite_de_credito = Limit, ingreso = Income, edad = Age)
+glimpse(creditos)
+```
+
+```{r}
+gg_ingreso_deuda_completo <- ggplot(data = creditos, aes(x=ingreso, y = deuda)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE)
+
+gg_ingreso_deuda_completo
+```
+
+Divide en quantiles
+```{r}
+creditos_q <- creditos %>% 
+  mutate(quantile_c = ntile(limite_de_credito,4)) %>%
+  mutate(category = case_when(
+    quantile_c == 1 ~ "low",
+    quantile_c == 2 ~ "med_low",
+    quantile_c == 3 ~ "med_high",
+    quantile_c == 4 ~ "high"
+  ))
+creditos_q
+```
+
+```{r}
+gg_ingreso_deuda_grupos <- ggplot(data = creditos_q, aes(x = ingreso, y = deuda, color = category)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  theme(legend.position = "right")
+
+
+gg_ingreso_deuda_grupos
+
+```
+
+Comparación
+
+```{r}
+ggarrange(gg_ingreso_deuda_completo,gg_ingreso_deuda_grupos,ncol = 2,
+          widths = c(4,5),heights = c(3,3))
+```
+
+
+
+Deuda vs edad
+```{r}
+gg_edad_completo <- ggplot(data = creditos, aes(x=edad, y = deuda)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE)
+```
+
+```{r}
+creditos_qedad <- creditos %>% 
+  mutate(category = paste("Q",ntile(edad,4),sep = "")) 
+
+creditos_qedad
+```
+
+```{r}
+gg_edad_grupos <- ggplot(data = creditos_qedad, aes(x = edad, y = deuda, color = category)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE)
+
+ggarrange(gg_edad_completo,gg_edad_grupos,widths = c(4.0,5.5),heights = c(5.0,5.0))
+
+```
+
+(Example of quantile per groups using dplyr and purr with the !!! operator)
+
+```{r}
+library(dplyr)
+library(purrr)
+p <- c(0.25, 0.5, 0.75,1)
+p_names <- map_chr(p, ~paste0(.x*100, "%"))
+
+p_funs <- map(p, ~partial(quantile, probs = .x, na.rm = TRUE)) %>% 
+  set_names(nm = p_names)
+
+p_funs
+
+
+mtcars %>% 
+  group_by(cyl) %>% 
+  summarize_at(vars(mpg), funs(!!!p_funs))
+
+
+```
+

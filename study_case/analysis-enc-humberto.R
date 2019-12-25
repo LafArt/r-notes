@@ -2,7 +2,7 @@ library(tidyverse)
 library(readxl)
 library(moderndive)
 library(ggpubr)
-encuestasHumberto <- as_tibble(read_excel("C:/wmd/datasets/didactic/encuestasHumberto.xlsx", 
+encuestasHumberto <- as_tibble(read_excel("encuestasHumberto.xlsx", 
                                           sheet = "Hoja1", range = "A1:CD291")) 
 
 var_1 <- encuestasHumberto[,2:35]
